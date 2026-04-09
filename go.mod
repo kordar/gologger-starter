@@ -1,4 +1,4 @@
-module github.com/kordar/gologger_starter
+module github.com/kordar/gologger-starter
 
 go 1.21.0
 
