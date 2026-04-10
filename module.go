@@ -46,14 +46,26 @@ func (m LoggerModule) _load(id string, cfg map[string]any) {
 			if cfg["filename"] != nil {
 				o.Filename = cast.ToString(cfg["filename"])
 			}
+			if cfg["is_rotate_daily"] != nil {
+				o.IsRotateDaily = cast.ToBool(cfg["is_rotate_daily"])
+			}
+			if cfg["is_rotate_hourly"] != nil {
+				o.IsRotateHourly = cast.ToBool(cfg["is_rotate_hourly"])
+			}
 			if cfg["timestamp_flag"] != nil {
 				o.TimestampFlag = cast.ToBool(cfg["timestamp_flag"])
+			}
+			if cfg["timestamp_with_ms_flag"] != nil {
+				o.TimestampWithMsFlag = cast.ToBool(cfg["timestamp_with_ms_flag"])
 			}
 			if cfg["level_flag"] != nil {
 				o.LevelFlag = cast.ToBool(cfg["level_flag"])
 			}
 			if cfg["short_file_flag"] != nil {
 				o.ShortFileFlag = cast.ToBool(cfg["short_file_flag"])
+			}
+			if cfg["assert_behavior"] != nil {
+				o.AssertBehavior = nazalog.AssertBehavior(cast.ToInt(cfg["assert_behavior"]))
 			}
 			if HookBackendOutFn != nil {
 				o.HookBackendOutFn = HookBackendOutFn
@@ -90,6 +102,8 @@ func (m LoggerModule) _load(id string, cfg map[string]any) {
 		slog.Info("loading module successfully", "module", m.Name(), "id", id, "driver", driver)
 		return
 	}
+
+	
 
 	slog.Warn("unsupported driver", "module", m.Name(), "id", id, "driver", driver)
 }

@@ -2,12 +2,12 @@
 
 基于配置加载 `log/slog` 的启动器。目前仅支持 `driver=nazalog`，通过 [gologger_nazalog](https://github.com/kordar/gologger_nazalog) 将日志输出到上游的 [nazalog](https://github.com/q191201771/naza/tree/master/pkg/nazalog)。
 
-> 注意：模块路径是 `github.com/kordar/gologger_starter`，包名是 `gologgerstarter`。
+> 注意：模块路径是 `github.com/kordar/gologger-starter`，包名是 `gologgerstarter`。
 
 ## 安装
 
 ```bash
-go get github.com/kordar/gologger_starter
+go get github.com/kordar/gologger-starter
 ```
 
 ## 快速开始
@@ -18,7 +18,7 @@ package main
 import (
 	"log/slog"
 
-	gologgerstarter "github.com/kordar/gologger_starter"
+	gologgerstarter "github.com/kordar/gologger-starter"
 	"github.com/q191201771/naza/pkg/nazalog"
 )
 
@@ -64,9 +64,13 @@ func main() {
 - `level`: int，对应 `nazalog.Level`
 - `is_to_stdout`: bool
 - `filename`: string
+- `is_rotate_daily`: bool
+- `is_rotate_hourly`: bool
 - `timestamp_flag`: bool
+- `timestamp_with_ms_flag`: bool
 - `level_flag`: bool
 - `short_file_flag`: bool
+- `assert_behavior`: int，对应 `nazalog.AssertBehavior`
 
 这些字段会映射到 `slog.HandlerOptions`：
 
@@ -85,4 +89,3 @@ func main() {
 - `func(id string, logger *slog.Logger)`
 - `func(id string, logger *slog.Logger, cfg map[string]any)`
 - `func(logger *slog.Logger)`
-
