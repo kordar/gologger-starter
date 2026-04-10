@@ -1,6 +1,6 @@
 # gologger-starter
 
-基于配置加载 `log/slog` 的启动器。目前仅支持 `driver=nazalog`，通过 [gologger_nazalog](https://github.com/kordar/gologger_nazalog) 将日志输出到上游的 [nazalog](https://github.com/q191201771/naza/tree/master/pkg/nazalog)。
+基于配置加载 `log/slog` 的启动器。目前仅支持 `driver=zap`，通过 [gologger_zap](https://github.com/kordar/gologger_zap) 将日志输出到 [zap](https://github.com/uber-go/zap)。
 
 > 注意：模块路径是 `github.com/kordar/gologger-starter`，包名是 `gologgerstarter`。
 
@@ -19,14 +19,9 @@ import (
 	"log/slog"
 
 	gologgerstarter "github.com/kordar/gologger-starter"
-	"github.com/q191201771/naza/pkg/nazalog"
 )
 
 func main() {
-	gologgerstarter.HookBackendOutFn = func(level nazalog.Level, line []byte) {
-		// 这里可以接入你自己的日志采集/测试断言等逻辑
-	}
-
 	m := gologgerstarter.NewLoggerModule("logger", func(id string, logger *slog.Logger) {
 		// 拿到构造好的 slog.Logger
 		logger.Info("logger ready", "id", id)
@@ -34,10 +29,10 @@ func main() {
 
 	m.Load(map[string]any{
 		"id":                 "default",
-		"driver":             "nazalog",
-		"filename":           "",
-		"is_to_stdout":       true,
-		"level":              int(nazalog.LevelInfo),
+		"driver":             "zap",
+		"zap_development":    true,
+		"zap_level":          "debug",
+		"zap_encoding":       "console",
 		"slog_level":         "info",
 		"add_source":         true,
 		"set_default_logger": true,
@@ -55,22 +50,19 @@ func main() {
 ### 通用字段
 
 - `id`: string，实例标识
-- `driver`: string，目前仅支持 `"nazalog"`
+- `driver`: string，目前仅支持 `"zap"`（也可不填，默认 zap）
 
-### driver=nazalog 字段
+### driver=zap 字段
 
-这些字段会映射到 `nazalog.Option`：
+这些字段会映射到 `zap.Config`：
 
-- `level`: int，对应 `nazalog.Level`
-- `is_to_stdout`: bool
-- `filename`: string
-- `is_rotate_daily`: bool
-- `is_rotate_hourly`: bool
-- `timestamp_flag`: bool
-- `timestamp_with_ms_flag`: bool
-- `level_flag`: bool
-- `short_file_flag`: bool
-- `assert_behavior`: int，对应 `nazalog.AssertBehavior`
+- `zap_development`: bool，使用 development/production 默认配置
+- `zap_level`: string，例如 `"debug"|"info"|"warn"|"error"`
+- `zap_encoding`: string，例如 `"json"|"console"`
+- `zap_output_paths`: []string，例如 `[]string{"stdout"}` 或 `[]string{"./app.log"}`
+- `zap_error_output_paths`: []string
+- `zap_rotate_daily`: bool，按天切割文件（对文件路径生效，stdout/stderr 无效）
+- `zap_rotate_hourly`: bool，按小时切割文件（优先级高于按天）
 
 这些字段会映射到 `slog.HandlerOptions`：
 
@@ -80,7 +72,6 @@ func main() {
 其它：
 
 - `set_default_logger`: bool，为 `true` 时会执行 `slog.SetDefault(logger)`
-- `HookBackendOutFn`: 包级变量（不是 cfg 字段），若非 nil，会设置到 `nazalog.Option.HookBackendOutFn`
 
 ## Load 回调签名
 
