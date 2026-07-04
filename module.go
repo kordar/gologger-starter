@@ -62,7 +62,7 @@ func (m LoggerModule) _load(id string, cfg map[string]any) {
 	}
 
 	sl := gologger_zap.NewSlogLogger(zl, opts)
-	if cast.ToBool(cfg["set_default_logger"]) {
+	if cast.ToBool(cfg["set_default"]) {
 		slog.SetDefault(sl)
 	}
 
@@ -137,7 +137,10 @@ func parseSlogLeveler(v any) slog.Leveler {
 
 func buildZapLogger(cfg map[string]any) (*zap.Logger, error) {
 	dev := cast.ToBool(cfg["zap_development"])
-	levelStr := cast.ToString(cfg["zap_level"])
+	levelStr := cast.ToString(cfg["level"])
+	if levelStr == "" {
+		levelStr = "info"
+	}
 	encoding := cast.ToString(cfg["zap_encoding"])
 	rotateDaily := cast.ToBool(cfg["zap_rotate_daily"])
 	rotateHourly := cast.ToBool(cfg["zap_rotate_hourly"])

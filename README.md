@@ -31,11 +31,11 @@ func main() {
 		"id":                 "default",
 		"driver":             "zap",
 		"zap_development":    true,
-		"zap_level":          "debug",
+		"level":              "debug",
 		"zap_encoding":       "console",
 		"slog_level":         "info",
 		"add_source":         true,
-		"set_default_logger": true,
+		"set_default":        true,
 	})
 }
 ```
@@ -57,7 +57,7 @@ func main() {
 这些字段会映射到 `zap.Config`：
 
 - `zap_development`: bool，使用 development/production 默认配置
-- `zap_level`: string，例如 `"debug"|"info"|"warn"|"error"`
+- `level`: string，例如 `"debug"|"info"|"warn"|"error"`  （默认 `"info"`）
 - `zap_encoding`: string，例如 `"json"|"console"`
 - `zap_output_paths`: []string，例如 `[]string{"stdout"}` 或 `[]string{"./app.log"}`
 - `zap_error_output_paths`: []string
@@ -71,7 +71,7 @@ func main() {
 
 其它：
 
-- `set_default_logger`: bool，为 `true` 时会执行 `slog.SetDefault(logger)`
+- `set_default`: bool，为 `true` 时会执行 `slog.SetDefault(logger)`
 
 ## Load 回调签名
 
