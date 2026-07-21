@@ -104,7 +104,10 @@ func Module(config ModuleConfig) []fx.Option {
 					fx.ResultTags(moduleLoggerTag),
 				),
 			),
-			fx.Invoke(registerDefaultLogger),
+			fx.Invoke(fx.Annotate(
+				registerDefaultLogger,
+				fx.ParamTags(``, moduleLoggerTag),
+			)),
 		),
 	}
 
@@ -180,12 +183,13 @@ func provideDefaultRouteHandler(cfg ModuleConfig) (gologger.RouteHandler, error)
 	}, nil
 }
 
-func assembleApplicationLogger(
-	handlers []gologger.RouteHandler,
-	decorators []gologger.HandlerDecorator,
-	enrichers []gologger.LoggerEnricher,
-) (*slog.Logger, error) {
-	logger, err := gologger.AssembleLogger(handlers, decorators, enrichers)
+func assembleApplicationLogger(p struct {
+	fx.In
+	Handlers   []gologger.RouteHandler     `group:"slog-route-handlers"`
+	Decorators []gologger.HandlerDecorator `group:"slog-handler-decorators"`
+	Enrichers  []gologger.LoggerEnricher   `group:"slog-logger-enrichers"`
+}) (*slog.Logger, error) {
+	logger, err := gologger.AssembleLogger(p.Handlers, p.Decorators, p.Enrichers)
 	if err != nil {
 		return nil, fmt.Errorf("gologger: assemble logger: %w", err)
 	}

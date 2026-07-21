@@ -1,10 +1,14 @@
 package gologgerstarter
 
 import (
+	"context"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"go.uber.org/fx"
 )
 
 func TestBuildModuleConfigSingleInstanceDefaults(t *testing.T) {
@@ -135,5 +139,30 @@ func TestProvideLoggerTouchOnStartCreatesFiles(t *testing.T) {
 		if info.IsDir() {
 			t.Fatalf("expected %q to be a file", path)
 		}
+	}
+}
+
+func TestModuleAssemblesLoggerViaFxGroups(t *testing.T) {
+	opts := Module(ModuleConfig{
+		Driver:      "zap",
+		ZapEncoding: "json",
+		FxLogger:    true,
+	})
+	opts = append(opts, fx.Invoke(fx.Annotate(
+		func(log *slog.Logger) {
+			if log == nil {
+				t.Fatal("expected non-nil logger")
+			}
+		},
+		fx.ParamTags(moduleLoggerTag),
+	)))
+
+	app := fx.New(opts...)
+	ctx := context.Background()
+	if err := app.Start(ctx); err != nil {
+		t.Fatalf("Start returned error: %v", err)
+	}
+	if err := app.Stop(ctx); err != nil {
+		t.Fatalf("Stop returned error: %v", err)
 	}
 }
