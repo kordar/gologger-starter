@@ -11,6 +11,7 @@ import (
 	"time"
 
 	gocfgmodulefx "github.com/kordar/gocfg-load-module/fx/v2"
+	"github.com/kordar/gologger"
 	"github.com/kordar/gologger_zap"
 	"github.com/spf13/cast"
 	"go.uber.org/fx"
@@ -84,26 +85,36 @@ func (m cfgModule) Load(data any) []fx.Option {
 
 // Module 返回 fx.Option 切片，按配置初始化并注册单个日志实例。
 // 日志实例以 `name:"gologger"` 的命名标签注册到 fx 容器。
-// 若配置了 set_default，则在 provider 中直接调用 slog.SetDefault。
+// default handler 由本 starter 贡献，其他 route handler 与 decorator 通过 Fx group 动态注入。
+// 若配置了 set_default，则在 fx.Invoke 阶段调用 slog.SetDefault。
 // 若配置了 fx_logger，则将 fx.WithLogger 作为顶层 option 返回，替换 Fx 内部日志。
 func Module(config ModuleConfig) []fx.Option {
 	config = normalizeModuleConfig(config)
-	logger, err := provideLogger(config)
 
 	result := []fx.Option{
 		fx.Module("gologger-starter",
 			fx.Supply(config),
 			fx.Provide(
 				fx.Annotate(
-					func() (*slog.Logger, error) { return logger, err },
+					provideDefaultRouteHandler,
+					fx.ResultTags(gologger.RouteHandlerGroup),
+				),
+				fx.Annotate(
+					assembleApplicationLogger,
 					fx.ResultTags(moduleLoggerTag),
 				),
 			),
+			fx.Invoke(registerDefaultLogger),
 		),
 	}
 
 	if config.FxLogger {
-		result = append(result, fx.WithLogger(func() fxevent.Logger { return &slogFxLogger{logger: logger} }))
+		result = append(result, fx.WithLogger(func(p struct {
+			fx.In
+			Logger *slog.Logger `name:"gologger"`
+		}) fxevent.Logger {
+			return &slogFxLogger{logger: p.Logger}
+		}))
 	}
 
 	return result
@@ -141,38 +152,61 @@ func buildModuleConfig(data any) ModuleConfig {
 	return normalizeModuleConfig(cfg)
 }
 
-func provideLogger(cfg ModuleConfig) (*slog.Logger, error) {
+func provideDefaultRouteHandler(cfg ModuleConfig) (gologger.RouteHandler, error) {
 	cfg = normalizeModuleConfig(cfg)
-	driver := cfg.Driver
-	if driver != "zap" {
-		return nil, fmt.Errorf("gologger: unsupported driver %q", driver)
+	if cfg.Driver != "zap" {
+		return gologger.RouteHandler{}, fmt.Errorf("gologger: unsupported driver %q", cfg.Driver)
 	}
 
 	if cfg.TouchOnStart {
 		if err := ensureLoggerOutputPaths(cfg); err != nil {
-			return nil, fmt.Errorf("gologger: prepare outputs: %w", err)
+			return gologger.RouteHandler{}, fmt.Errorf("gologger: prepare outputs: %w", err)
 		}
 	}
 
 	zl, err := buildZapLogger(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("gologger: build zap: %w", err)
+		return gologger.RouteHandler{}, fmt.Errorf("gologger: build zap: %w", err)
 	}
 
-	opts := &slog.HandlerOptions{
-		AddSource: cfg.AddSource,
-	}
+	opts := &slog.HandlerOptions{AddSource: cfg.AddSource}
 	if cfg.SlogLevel != nil {
 		opts.Level = cfg.SlogLevel
 	}
 
-	sl := gologger_zap.NewSlogLogger(zl, opts)
-	if cfg.SetDefault {
-		slog.SetDefault(sl)
-		slog.Info("slog default logger updated", "logger", "gologger")
+	return gologger.RouteHandler{
+		Route:   gologger.RouteDefault,
+		Handler: gologger_zap.NewSlogHandler(zl, opts),
+	}, nil
+}
+
+func assembleApplicationLogger(
+	handlers []gologger.RouteHandler,
+	decorators []gologger.HandlerDecorator,
+	enrichers []gologger.LoggerEnricher,
+) (*slog.Logger, error) {
+	logger, err := gologger.AssembleLogger(handlers, decorators, enrichers)
+	if err != nil {
+		return nil, fmt.Errorf("gologger: assemble logger: %w", err)
 	}
 	slog.Info("gologger initialized")
-	return sl, nil
+	return logger, nil
+}
+
+func registerDefaultLogger(cfg ModuleConfig, logger *slog.Logger) {
+	if !cfg.SetDefault {
+		return
+	}
+	slog.SetDefault(logger)
+	slog.Info("slog default logger updated", "logger", "gologger")
+}
+
+func provideLogger(cfg ModuleConfig) (*slog.Logger, error) {
+	routeHandler, err := provideDefaultRouteHandler(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return gologger.AssembleLogger([]gologger.RouteHandler{routeHandler}, nil, nil)
 }
 
 func normalizeModuleConfig(cfg ModuleConfig) ModuleConfig {
